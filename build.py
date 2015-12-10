@@ -85,7 +85,7 @@ supported_builds = {
     # 'windows': [ "amd64", "386", "arm" ],
     'linux': [ "amd64", "386", "arm" ]
 }
-supported_go = [ '1.5.1', '1.4.2' ]
+
 supported_packages = {
     "darwin": [ "tar", "zip" ],
     "linux": [ "deb", "rpm", "tar", "zip" ],
