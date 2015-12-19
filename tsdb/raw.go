@@ -31,9 +31,9 @@ type RawExecutor struct {
 
 // NewRawExecutor returns a new RawExecutor.
 func NewRawExecutor(stmt *influxql.SelectStatement, mappers []Mapper, chunkSize int) *RawExecutor {
-	a := []*StatefulMapper{}
-	for _, m := range mappers {
-		a = append(a, &StatefulMapper{m, nil, false})
+	a := make([]*StatefulMapper, len(mappers))
+	for i, m := range mappers {
+		a[i] = &StatefulMapper{m, nil, false}
 	}
 	return &RawExecutor{
 		stmt:           stmt,
@@ -500,7 +500,7 @@ func (r *limitedRowWriter) processValues(values []*MapperValue) *models.Row {
 		Columns: aliasFields,
 	}
 
-	// Kick out an empty row it no results available.
+	// Kick out an empty row if no results available.
 	if len(values) == 0 {
 		return row
 	}
@@ -641,8 +641,10 @@ func processForMath(fields influxql.Fields, results [][]interface{}) [][]interfa
 	for _, f := range fields {
 		if _, ok := f.Expr.(*influxql.BinaryExpr); ok {
 			hasMath = true
+			break
 		} else if _, ok := f.Expr.(*influxql.ParenExpr); ok {
 			hasMath = true
+			break
 		}
 	}
 

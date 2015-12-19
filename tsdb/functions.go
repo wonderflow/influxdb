@@ -7,6 +7,7 @@ package tsdb
 // When adding an aggregate function, define a mapper, a reducer, and add them in the switch statement in the MapreduceFuncs function
 
 import (
+	"bytes"
 	"container/heap"
 	"encoding/json"
 	"fmt"
@@ -15,7 +16,6 @@ import (
 	"reflect"
 	"sort"
 
-	// "github.com/davecgh/go-spew/spew"
 	"github.com/influxdb/influxdb/influxql"
 )
 
@@ -126,7 +126,7 @@ func initializeMapFunc(c *influxql.Call) (mapFunc, error) {
 	}
 }
 
-// InitializereduceFunc takes an aggregate call from the query and returns the reduceFunc
+// InitializeReduceFunc takes an aggregate call from the query and returns the reduceFunc
 func initializeReduceFunc(c *influxql.Call) (reduceFunc, error) {
 	// Retrieve reduce function by name.
 	switch c.Name {
@@ -289,13 +289,13 @@ func (d InterfaceValues) Less(i, j int) bool {
 
 // MapDistinct computes the unique values in an iterator.
 func MapDistinct(input *MapInput) interface{} {
-	m := make(map[interface{}]struct{})
-	for _, item := range input.Items {
-		m[item.Value] = struct{}{}
+	if len(input.Items) == 0 {
+		return nil
 	}
 
-	if len(m) == 0 {
-		return nil
+	m := make(map[interface{}]struct{}, len(input.Items))
+	for _, item := range input.Items {
+		m[item.Value] = struct{}{}
 	}
 
 	results := make(InterfaceValues, len(m))
@@ -342,14 +342,14 @@ func ReduceDistinct(values []interface{}) interface{} {
 
 // MapCountDistinct computes the unique count of values in an iterator.
 func MapCountDistinct(input *MapInput) interface{} {
-	var index = make(map[interface{}]struct{})
+	if len(input.Items) == 0 {
+		return nil
+	}
+
+	var index = make(map[interface{}]struct{}, len(input.Items))
 
 	for _, item := range input.Items {
 		index[item.Value] = struct{}{}
-	}
-
-	if len(index) == 0 {
-		return nil
 	}
 
 	return index
@@ -1422,18 +1422,24 @@ func topCallArgs(c *influxql.Call) []string {
 }
 
 func tagkeytop(args []string, fields map[string]interface{}, keys map[string]string) string {
-	key := ""
+	var buf bytes.Buffer
 	for _, a := range args {
 		if v, ok := fields[a]; ok {
-			key += a + ":" + fmt.Sprintf("%v", v) + ","
+			_, _ = buf.WriteString(a)
+			_, _ = buf.WriteString(":")
+			_, _ = buf.WriteString(fmt.Sprintf("%v", v))
+			_, _ = buf.WriteString(",")
 			continue
 		}
 		if v, ok := keys[a]; ok {
-			key += a + ":" + v + ","
+			_, _ = buf.WriteString(a)
+			_, _ = buf.WriteString(":")
+			_, _ = buf.WriteString(v)
+			_, _ = buf.WriteString(",")
 			continue
 		}
 	}
-	return key
+	return buf.String()
 }
 
 // map iterator. We need this for the top
@@ -1644,16 +1650,15 @@ func ReduceTopBottom(values []interface{}, limit int, fields []string, callName 
 
 // MapEcho emits the data points for each group by interval
 func MapEcho(input *MapInput) interface{} {
-	var values []interface{}
-	for _, item := range input.Items {
-		values = append(values, item.Value)
+	values := make([]interface{}, len(input.Items))
+	for i, item := range input.Items {
+		values[i] = item.Value
 	}
 	return values
 }
 
 // ReducePercentile computes the percentile of values for each key.
 func ReducePercentile(values []interface{}, percentile float64) interface{} {
-
 	var allValues []float64
 
 	for _, v := range values {
@@ -1695,9 +1700,9 @@ func IsNumeric(c *influxql.Call) bool {
 
 // MapRawQuery is for queries without aggregates
 func MapRawQuery(input *MapInput) interface{} {
-	var values []*rawQueryMapOutput
-	for _, item := range input.Items {
-		values = append(values, &rawQueryMapOutput{item.Timestamp, item.Value})
+	values := make([]*rawQueryMapOutput, len(input.Items))
+	for i, item := range input.Items {
+		values[i] = &rawQueryMapOutput{item.Timestamp, item.Value}
 	}
 	return values
 }

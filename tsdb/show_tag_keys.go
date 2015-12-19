@@ -10,7 +10,7 @@ import (
 	"github.com/influxdb/influxdb/models"
 )
 
-// ShowTagKeysExecutor implements the Executor interface for a SHOW MEASUREMENTS statement.
+// ShowTagKeysExecutor implements the Executor interface for a SHOW TAG KEYS statement.
 type ShowTagKeysExecutor struct {
 	stmt      *influxql.ShowTagKeysStatement
 	mappers   []Mapper
@@ -81,7 +81,7 @@ func (e *ShowTagKeysExecutor) Execute(closing <-chan struct{}) <-chan *models.Ro
 		// All mappers are drained.
 
 		// Convert the set into an array of measurements and their tag keys.
-		mstks := make(MeasurementsTagKeys, 0)
+		mstks := make(MeasurementsTagKeys, 0, len(set))
 		for mm, tks := range set {
 			mtks := &MeasurementTagKeys{Measurement: mm}
 			for tk := range tks {

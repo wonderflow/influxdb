@@ -396,9 +396,9 @@ func (a TagSetCursors) Less(i, j int) bool { return a[i].key() < a[j].key() }
 func (a TagSetCursors) Swap(i, j int)      { a[i], a[j] = a[j], a[i] }
 
 func (a TagSetCursors) Keys() []string {
-	keys := []string{}
-	for i := range a {
-		keys = append(keys, a[i].key())
+	keys := make([]string, len(a))
+	for i, k := range a {
+		keys[i] = k.key()
 	}
 	sort.Strings(keys)
 	return keys

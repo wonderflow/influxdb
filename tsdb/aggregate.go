@@ -22,11 +22,11 @@ type AggregateExecutor struct {
 func NewAggregateExecutor(stmt *influxql.SelectStatement, mappers []Mapper) *AggregateExecutor {
 	e := &AggregateExecutor{
 		stmt:    stmt,
-		mappers: make([]*StatefulMapper, 0, len(mappers)),
+		mappers: make([]*StatefulMapper, len(mappers)),
 	}
 
-	for _, m := range mappers {
-		e.mappers = append(e.mappers, &StatefulMapper{m, nil, false})
+	for i, m := range mappers {
+		e.mappers[i] = &StatefulMapper{m, nil, false}
 	}
 
 	return e

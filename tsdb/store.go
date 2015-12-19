@@ -68,7 +68,7 @@ func (s *Store) Shard(id uint64) *Shard {
 	return s.shards[id]
 }
 
-// ShardN returns the number of shard in the store.
+// ShardN returns the number of shards in the store.
 func (s *Store) ShardN() int {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
@@ -200,7 +200,7 @@ func (s *Store) DatabaseIndex(name string) *DatabaseIndex {
 func (s *Store) Databases() []string {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
-	databases := []string{}
+	databases := make([]string, 0, len(s.databaseIndexes))
 	for db := range s.databaseIndexes {
 		databases = append(databases, db)
 	}
@@ -362,7 +362,7 @@ func (s *Store) performMaintenance() {
 func (s *Store) performMaintenanceOnShard(shard *Shard) {
 	defer func() {
 		if r := recover(); r != nil {
-			s.Logger.Printf("recovered eror in maintenance on shard %d", shard.id)
+			s.Logger.Printf("recovered error in maintenance on shard %d", shard.id)
 		}
 	}()
 	shard.PerformMaintenance()
