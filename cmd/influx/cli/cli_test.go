@@ -271,7 +271,17 @@ func TestParseCommand_Quit(t *testing.T) {
 
 func TestParseCommand_Use(t *testing.T) {
 	t.Parallel()
-	c := cli.CommandLine{}
+	ts := emptyTestServer()
+	defer ts.Close()
+
+	u, _ := url.Parse(ts.URL)
+	config := client.Config{URL: *u}
+	c, err := client.NewClient(config)
+	if err != nil {
+		t.Fatalf("unexpected error.  expected %v, actual %v", nil, err)
+	}
+	m := cli.CommandLine{Client: c}
+
 	tests := []struct {
 		cmd string
 	}{
@@ -284,12 +294,12 @@ func TestParseCommand_Use(t *testing.T) {
 	}
 
 	for _, test := range tests {
-		if !c.ParseCommand(test.cmd) {
+		if !m.ParseCommand(test.cmd) {
 			t.Fatalf(`Command "use" failed for %q.`, test.cmd)
 		}
 
-		if c.Database != "db" {
-			t.Fatalf(`Command "use" changed database to %q. Expected db`, c.Database)
+		if m.Database != "db" {
+			t.Fatalf(`Command "use" changed database to %q. Expected db`, m.Database)
 		}
 	}
 }
@@ -497,6 +507,24 @@ func emptyTestServer() *httptest.Server {
 			stmt := q.Statements[0]
 
 			switch stmt.(type) {
+			case *influxql.ShowDatabasesStatement:
+				out, _ := json.Marshal(map[string]interface{}{
+					"results": []map[string]interface{}{
+						map[string]interface{}{
+							"series": []map[string]interface{}{
+								map[string]interface{}{
+									"name":    "databases",
+									"columns": []string{"name"},
+									"values": []interface{}{
+										[]string{"db"},
+									},
+								},
+							},
+						},
+					},
+				})
+				w.WriteHeader(200)
+				w.Write(out)
 			case *influxql.ShowDiagnosticsStatement:
 				out, _ := json.Marshal(map[string]interface{}{
 					"results": []map[string]interface{}{
