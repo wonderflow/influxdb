@@ -99,5 +99,5 @@ Examples:
 		os.Exit(0)
 	}
 
-	c.Run()
+	os.Exit(c.Run())
 }

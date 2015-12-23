@@ -3,6 +3,7 @@ package cli_test
 import (
 	"bufio"
 	"bytes"
+	"encoding/json"
 	"net"
 	"net/http"
 	"net/http/httptest"
@@ -12,6 +13,7 @@ import (
 
 	"github.com/influxdb/influxdb/client"
 	"github.com/influxdb/influxdb/cmd/influx/cli"
+	"github.com/influxdb/influxdb/influxql"
 	"github.com/peterh/liner"
 )
 
@@ -43,7 +45,13 @@ func TestRunCLI(t *testing.T) {
 	c := cli.New(CLIENT_VERSION)
 	c.Host = h
 	c.Port, _ = strconv.Atoi(p)
-	c.Run()
+	c.IgnoreSignals = true
+	go func() {
+		close(c.Quit)
+	}()
+	if status := c.Run(); status != 0 {
+		t.Fatalf("Run failed with status %d", status)
+	}
 }
 
 func TestRunCLI_ExecuteInsert(t *testing.T) {
@@ -58,7 +66,10 @@ func TestRunCLI_ExecuteInsert(t *testing.T) {
 	c.Port, _ = strconv.Atoi(p)
 	c.Precision = "ms"
 	c.Execute = "INSERT sensor,floor=1 value=2"
-	c.Run()
+	c.IgnoreSignals = true
+	if status := c.Run(); status != 0 {
+		t.Fatalf("Run failed with status %d", status)
+	}
 }
 
 func TestConnect(t *testing.T) {
@@ -473,6 +484,30 @@ func TestParseCommand_HistoryWithBlankCommand(t *testing.T) {
 func emptyTestServer() *httptest.Server {
 	return httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("X-Influxdb-Version", SERVER_VERSION)
-		return
+
+		switch r.URL.Path {
+		case "/query":
+			values := r.URL.Query()
+			parser := influxql.NewParser(bytes.NewBufferString(values.Get("q")))
+			q, err := parser.ParseQuery()
+			if err != nil {
+				w.WriteHeader(500)
+				return
+			}
+			stmt := q.Statements[0]
+
+			switch stmt.(type) {
+			case *influxql.ShowDiagnosticsStatement:
+				out, _ := json.Marshal(map[string]interface{}{
+					"results": []map[string]interface{}{
+						map[string]interface{}{},
+					},
+				})
+				w.WriteHeader(200)
+				w.Write(out)
+			}
+		case "/write":
+			w.WriteHeader(200)
+		}
 	}))
 }
