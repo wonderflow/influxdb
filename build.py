@@ -452,6 +452,7 @@ def build_packages(build_output, version, nightly=False, rc=None, iteration=1):
                     print "\t- Packaging directory '{}' as '{}'...".format(build_root, package_type),
                     name = "influxdb"
                     package_version = version
+                    package_iteration = iteration
                     if package_type in ['zip', 'tar']:
                         if nightly:
                             name = '{}-nightly_{}_{}'.format(name, p, a)
@@ -460,25 +461,19 @@ def build_packages(build_output, version, nightly=False, rc=None, iteration=1):
                     if package_type == 'tar':
                         # Add `tar.gz` to path to ensure a small package size
                         current_location = os.path.join(current_location, name + '.tar.gz')
-                    if package_type == 'deb' and rc:
-                        # For debs with an RC, just append to version number
-                        package_version += "-rc{}".format(rc)
-                    fpm_command = "fpm {} --name {} -a {} -t {} --version {} -C {} -p {} ".format(
+                    if rc is not None:
+                        package_iteration = "0.rc{}".format(rc)
+                    fpm_command = "fpm {} --name {} -a {} -t {} --version {} --iteration {} -C {} -p {} ".format(
                         fpm_common_args,
                         name,
                         a,
                         package_type,
                         package_version,
+                        package_iteration,
                         build_root,
                         current_location)
                     if package_type == "rpm":
                         fpm_command += "--depends coreutils "
-                        # For rpms with RC, add to iteration for adherence to Fedora packaging standard:
-                        # http://fedoraproject.org/wiki/Packaging%3aNamingGuidelines#NonNumericRelease
-                        if rc:
-                            fpm_command += "--iteration 0.{}.rc{} ".format(iteration, rc)
-                        else:
-                            fpm_command += "--iteration {} ".format(iteration)
                     out = run(fpm_command, shell=True)
                     matches = re.search(':path=>"(.*)"', out)
                     outfile = None
@@ -514,13 +509,14 @@ def print_usage():
     print "\t --commit=<commit> \n\t\t- Use specific commit for build (currently a NOOP)."
     print "\t --branch=<branch> \n\t\t- Build from a specific branch (currently a NOOP)."
     print "\t --rc=<rc number> \n\t\t- Whether or not the build is a release candidate (affects version information)."
+    print "\t --iteration=<iteration number> \n\t\t- The iteration to display on the package output (defaults to 0 for RC's, and 1 otherwise)."    
     print "\t --race \n\t\t- Whether the produced build should have race detection enabled."
     print "\t --package \n\t\t- Whether the produced builds should be packaged for the target platform(s)."
     print "\t --nightly \n\t\t- Whether the produced build is a nightly (affects version information)."
     print "\t --update \n\t\t- Whether dependencies should be updated prior to building."
     print "\t --test \n\t\t- Run Go tests. Will not produce a build."
     print "\t --parallel \n\t\t- Run Go tests in parallel up to the count specified."
-    print "\t --timeout \n\t\t- Timeout for Go tests. Default 480s"
+    print "\t --timeout \n\t\t- Timeout for Go tests. Defaults to 480s."
     print "\t --clean \n\t\t- Clean the build output directory prior to creating build."
     print ""
 
@@ -637,7 +633,9 @@ def main():
             target_arch = get_system_arch()
     if not target_platform:
         target_platform = get_system_platform()
-
+    if rc:
+        # If a release candidate, set iteration to 0 (instead of 1)
+        iteration = 0
 
     build_output = {}
     # TODO(rossmcdonald): Prepare git repo for build (checking out correct branch/commit, etc.)
