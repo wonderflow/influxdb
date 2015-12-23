@@ -337,26 +337,7 @@ def build(version=None,
             build_command += "-X main.branch={} ".format(branch)
             build_command += "-X main.commit={}\" ".format(get_current_commit())
         build_command += c
-        
-        try_bootstrap = False
-        if (arch != get_system_arch() or platform != get_system_platform()) and os.environ.get("GOROOT"):
-            # If cross-compiling, enable a second pass after bootstrapping Go
-            try_bootstrap = True
-        if run(build_command, shell=True, allow_failure=try_bootstrap) == None:
-            print "!! Build encountered a failure, attempting to bootstrap before trying again..."
-            cwd = os.getcwd()
-            go_root = os.environ.get("GOROOT")
-            try:
-                os.chdir(os.path.join(go_root, "src"))
-                bootstrap_command = "GOOS={} GOARCH={} ".format(platform, arch)
-                if arch == 'arm':
-                    bootstrap_command += "GOARM={} ".format(goarm_version)
-                bootstrap_command += "$GOROOT/src/make.bash"
-                print "Bootstrapping Go for {}/{}...".format(platform, arch)
-                run(bootstrap_command, shell=True)
-            finally:
-                os.chdir(cwd)
-                run(build_command, shell=True)
+        run(build_command, shell=True)
         print "[ DONE ]"
     print ""
 
